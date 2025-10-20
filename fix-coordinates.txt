@@ -1,0 +1,5 @@
+Need to fix these remaining coordinate references in ShipmentsController.cs:
+- Line ~168: OriginLatitude -> OriginCity  
+- Line ~169: OriginLongitude -> OriginRegion
+- Line ~170: DestinationLatitude -> DestinationCity
+- Line ~171: DestinationLongitude -> DestinationRegion

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using demoProject.Data;
@@ -11,9 +12,11 @@ using demoProject.Data;
 namespace demoProject.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251019155553_RemoveCoordinatesSimplifyAddresses")]
+    partial class RemoveCoordinatesSimplifyAddresses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,6 +67,12 @@ namespace demoProject.Migrations
                     b.Property<string>("CurrentAddress")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<decimal?>("CurrentLatitude")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("CurrentLongitude")
+                        .HasColumnType("numeric");
 
                     b.Property<bool>("IsVerified")
                         .HasColumnType("boolean");
@@ -195,25 +204,21 @@ namespace demoProject.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("DestinationCity")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("DestinationLatitude")
+                        .HasColumnType("decimal(10,8)");
 
-                    b.Property<string>("DestinationRegion")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("DestinationLongitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("OriginAddress")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("OriginCity")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("OriginLatitude")
+                        .HasColumnType("decimal(10,8)");
 
-                    b.Property<string>("OriginRegion")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("OriginLongitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("ReceiverEmail")
                         .IsRequired()
@@ -262,9 +267,15 @@ namespace demoProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(10,8)");
+
                     b.Property<string>("Location")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(255)

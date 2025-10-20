@@ -16,7 +16,7 @@ This guide provides all the API endpoints with request and response schemas for 
 
 ### API Base URL
 ```
-Development: http://localhost:5000/api
+Development: https://localhost:5000/api (MUST use HTTPS for cookies to work with React)
 Production: https://your-domain.com/api
 ```
 
@@ -26,6 +26,102 @@ Production: https://your-domain.com/api
   'Content-Type': 'application/json'
   // Authentication is handled automatically via HTTP-only cookies
 }
+```
+
+### **CRITICAL: React Frontend Cookie Setup**
+
+**For cookies to work with React, you MUST:**
+
+1. **Use HTTPS for both backend and frontend**:
+   ```bash
+   # Backend runs on: https://localhost:5000
+   # React must run on HTTPS too: https://localhost:3000
+   ```
+
+2. **Configure React for HTTPS** - Add to your React `.env` file:
+   ```env
+   HTTPS=true
+   SSL_CRT_FILE=node_modules/webpack-dev-server/ssl/server.crt
+   SSL_KEY_FILE=node_modules/webpack-dev-server/ssl/server.key
+   ```
+
+3. **Include credentials in ALL requests**:
+   ```javascript
+   // For fetch API
+   fetch('https://localhost:5000/api/auth/login', {
+     method: 'POST',
+     credentials: 'include', // REQUIRED!
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ email, password })
+   });
+
+   // For Axios (configure once globally)
+   axios.defaults.withCredentials = true;
+   axios.defaults.baseURL = 'https://localhost:5000/api';
+   ```
+
+4. **Verify CORS configuration** - Backend already configured for:
+   - `https://localhost:3000` (Create React App)
+   - `https://localhost:5173` (Vite)
+   - Add your specific frontend URL if different
+
+### React Authentication Hook Example
+```javascript
+// hooks/useAuth.js
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+// Configure axios globally
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = 'https://localhost:5000/api';
+
+export const useAuth = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Check if user is authenticated on app load
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await axios.get('/auth/me');
+      setUser(response.data);
+    } catch (error) {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (email, password) => {
+    try {
+      const response = await axios.post('/auth/login', { email, password });
+      setUser(response.data.user);
+      return { success: true, user: response.data.user };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || 'Login failed' 
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await axios.post('/auth/logout');
+      setUser(null);
+      return { success: true };
+    } catch (error) {
+      // Even if logout fails on server, clear local state
+      setUser(null);
+      return { success: false };
+    }
+  };
+
+  return { user, loading, login, logout, checkAuth };
+};
 ```
 
 ---
@@ -267,10 +363,10 @@ None
     "receiverPhone": "+1234567891",
     "originAddress": "123 Main St, New York, NY 10001",
     "destinationAddress": "456 Oak Ave, Los Angeles, CA 90001",
-    "originLatitude": 40.7128,
-    "originLongitude": -74.0060,
-    "destinationLatitude": 34.0522,
-    "destinationLongitude": -118.2437,
+    "originCity": "New York",
+    "originRegion": "NY", 
+    "destinationCity": "Los Angeles",
+    "destinationRegion": "CA",
     "status": "Created | PickedUp | InTransit | Delivered | Cancelled",
     "assignedDriver": {
       "id": 2,
@@ -287,8 +383,6 @@ None
         "id": 1,
         "status": "PickedUp",
         "location": "New York Distribution Center",
-        "latitude": 40.7128,
-        "longitude": -74.0060,
         "remarks": "Package picked up from sender",
         "updatedBy": {
           "id": 2,
@@ -326,10 +420,10 @@ Same structure as single shipment in the array above.
   "receiverPhone": "string (optional)",
   "originAddress": "string (required)",
   "destinationAddress": "string (required)",
-  "originLatitude": "number (optional)",
-  "originLongitude": "number (optional)",
-  "destinationLatitude": "number (optional)",
-  "destinationLongitude": "number (optional)"
+  "originCity": "string (optional)",
+  "originRegion": "string (optional)",
+  "destinationCity": "string (optional)",
+  "destinationRegion": "string (optional)"
 }
 ```
 
@@ -372,7 +466,172 @@ Same structure as shipment object above.
 }
 ```
 
-### 6. Update Shipment Status
+### 6. Get Driver Recommendations for Shipment
+**Endpoint:** `GET /api/shipments/{id}/driver-recommendations`
+**Access:** Admin only
+**Description:** Get intelligent driver recommendations for a shipment
+
+#### Query Parameters
+```
+?priority=Distance|Experience|Rating|Availability|Balanced (optional, default: Balanced)
+```
+
+#### Response (200 OK)
+```json
+[
+  {
+    "driver": {
+      "id": 2,
+      "fullName": "Mike Driver",
+      "email": "mike.driver@logistictracker.com",
+      "phone": "+1234567892",
+      "role": "Driver",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "driverDetails": {
+      "status": "Available",
+      "currentAddress": "Manhattan, NY",
+      "maxActiveShipments": 5,
+      "vehicleType": "Van",
+      "licenseNumber": "DL123456",
+      "isVerified": true,
+      "lastActiveTime": "2024-01-01T08:00:00Z",
+      "workStartTime": "08:00:00",
+      "workEndTime": "18:00:00",
+      "preferredRegion": "New York"
+    },
+    "distance": 2.5,
+    "activeShipments": 1,
+    "rating": 4.8,
+    "completedShipments": 150,
+    "lastLocationUpdate": "2024-01-01T08:30:00Z",
+    "score": 0.92,
+    "recommendationReason": "Very close distance, Excellent rating, Experienced",
+    "recommendationFactors": [
+      "Very close distance",
+      "Excellent rating",
+      "Highly experienced",
+      "Verified driver"
+    ]
+  }
+]
+```
+
+### 7. Smart Driver Assignment
+**Endpoint:** `POST /api/shipments/{id}/smart-assign`
+**Access:** Admin only
+**Description:** Intelligently assign driver to shipment or get recommendations
+
+#### Request Body
+```json
+{
+  "preferredDriverId": "guid (optional, override automatic selection)",
+  "useAutoAssignment": "boolean (default: true, auto-assign best driver)",
+  "maxRecommendations": "number (default: 5, max recommendations to return)",
+  "priority": "Distance | Experience | Rating | Availability | Balanced (default: Balanced)"
+}
+```
+
+#### Response (200 OK)
+If `useAutoAssignment` is true or `preferredDriverId` is specified:
+```json
+{
+  "driver": {
+    "id": 2,
+    "fullName": "Mike Driver",
+    "email": "mike.driver@logistictracker.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "driverDetails": {
+    "status": "Busy",
+    "currentAddress": "Manhattan, NY",
+    "maxActiveShipments": 5,
+    "vehicleType": "Van",
+    "licenseNumber": "DL123456",
+    "isVerified": true,
+    "lastActiveTime": "2024-01-01T08:00:00Z",
+    "workStartTime": "08:00:00",
+    "workEndTime": "18:00:00",
+    "preferredRegion": "New York"
+  },
+  "distance": 2.5,
+  "activeShipments": 2,
+  "rating": 4.8,
+  "completedShipments": 150,
+  "lastLocationUpdate": "2024-01-01T08:30:00Z",
+  "score": 0.92,
+  "recommendationReason": "Very close distance, Excellent rating, Experienced",
+  "recommendationFactors": [
+    "Very close distance",
+    "Excellent rating",
+    "Highly experienced",
+    "Verified driver"
+  ]
+}
+```
+
+If `useAutoAssignment` is false, returns array of recommendations (same as driver-recommendations endpoint).
+
+### 8. Get Available Drivers
+**Endpoint:** `GET /api/shipments/available-drivers`
+**Access:** Admin only
+**Description:** Get all drivers with their availability status
+
+#### Response (200 OK)
+```json
+[
+  {
+    "driver": {
+      "id": 2,
+      "fullName": "Mike Driver",
+      "email": "mike.driver@logistictracker.com",
+      "phone": "+1234567892",
+      "role": "Driver",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "driverDetails": {
+      "status": "Available",
+      "currentAddress": "Manhattan, NY",
+      "maxActiveShipments": 5,
+      "vehicleType": "Van",
+      "licenseNumber": "DL123456",
+      "isVerified": true,
+      "lastActiveTime": "2024-01-01T08:00:00Z",
+      "workStartTime": "08:00:00",
+      "workEndTime": "18:00:00",
+      "preferredRegion": "New York"
+    },
+    "activeShipments": 2,
+    "isAvailable": true,
+    "availabilityReason": "Available"
+  }
+]
+```
+
+### 9. Assign Driver to Shipment (Legacy)
+**Endpoint:** `PUT /api/shipments/{id}/assign-driver`
+**Access:** Admin only
+**Description:** Manually assign a specific driver to a shipment (use smart-assign instead for better results)
+
+#### Request Body
+```json
+{
+  "driverId": "guid (required)"
+}
+```
+
+#### Response (204 No Content)
+
+#### Error Response (400 Bad Request)
+```json
+{
+  "message": "Invalid driver"
+}
+```
+
+### 10. Update Shipment Status
 **Endpoint:** `PUT /api/shipments/{id}/status`
 **Access:** Driver (assigned to shipment)
 **Description:** Update shipment status with location
@@ -382,8 +641,6 @@ Same structure as shipment object above.
 {
   "status": "Created | PickedUp | InTransit | Delivered | Cancelled (required)",
   "location": "string (optional)",
-  "latitude": "number (optional)",
-  "longitude": "number (optional)",
   "remarks": "string (optional)"
 }
 ```
@@ -395,6 +652,100 @@ Same structure as shipment object above.
 {
   "message": "Forbidden"
 }
+```
+
+---
+
+## Driver Management APIs
+
+### 1. Update Driver Location
+**Endpoint:** `POST /api/drivers/location`
+**Access:** Driver (own profile only)
+**Description:** Update driver's current location
+
+#### Request Body
+```json
+{
+  "address": "string (required)"
+}
+```
+
+#### Response (204 No Content)
+
+### 2. Update Driver Status
+**Endpoint:** `PUT /api/drivers/status`
+**Access:** Driver (own profile only)
+**Description:** Update driver availability status
+
+#### Request Body
+```json
+{
+  "status": "Available | Busy | OffDuty | OnBreak (required)"
+}
+```
+
+#### Response (204 No Content)
+
+### 3. Update Driver Profile
+**Endpoint:** `PUT /api/drivers/profile`
+**Access:** Driver (own profile only)
+**Description:** Update driver profile settings
+
+#### Request Body
+```json
+{
+  "maxActiveShipments": "number (1-5, default: 5)",
+  "vehicleType": "string (optional, max 50 chars)",
+  "licenseNumber": "string (optional, max 20 chars)",
+  "workStartTime": "time (optional, format: HH:mm:ss)",
+  "workEndTime": "time (optional, format: HH:mm:ss)",
+  "preferredRegion": "string (optional, max 50 chars)"
+}
+```
+
+#### Response (204 No Content)
+
+### 4. Create Driver Profile
+**Endpoint:** `POST /api/drivers/profile`
+**Access:** Driver (own profile only)
+**Description:** Create driver profile (required for new drivers)
+
+#### Response (204 No Content)
+
+### 5. Get Driver Availability
+**Endpoint:** `GET /api/drivers/availability`
+**Access:** Admin only
+**Description:** Get all drivers with availability status
+
+#### Response (200 OK)
+```json
+[
+  {
+    "driver": {
+      "id": 2,
+      "fullName": "Mike Driver",
+      "email": "mike.driver@logistictracker.com",
+      "phone": "+1234567892",
+      "role": "Driver",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    "driverDetails": {
+      "status": "Available",
+      "currentAddress": "Manhattan, NY",
+      "maxActiveShipments": 5,
+      "vehicleType": "Van",
+      "licenseNumber": "DL123456",
+      "isVerified": true,
+      "lastActiveTime": "2024-01-01T08:00:00Z",
+      "workStartTime": "08:00:00",
+      "workEndTime": "18:00:00",
+      "preferredRegion": "New York"
+    },
+    "activeShipments": 2,
+    "isAvailable": true,
+    "availabilityReason": "Available"
+  }
+]
 ```
 
 ---

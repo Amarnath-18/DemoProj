@@ -5,7 +5,8 @@ A comprehensive logistics tracking system built with ASP.NET Core 8.0, Entity Fr
 ## Features
 
 - User authentication and authorization (Admin, Driver, Customer roles)
-- Shipment management and tracking
+- Shipment management and tracking with address-based locations
+- Smart driver assignment system with region-based matching
 - Real-time notifications via SendGrid
 - Audit logging
 - Comprehensive reporting system

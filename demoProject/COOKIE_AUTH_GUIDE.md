@@ -16,9 +16,10 @@ This project has been updated to use HTTP-only cookies for authentication instea
 ### 2. Cookie Configuration
 
 - **HttpOnly**: `true` - Prevents JavaScript access to the cookie
-- **Secure**: `true` in production, `false` in development
-- **SameSite**: `Strict` - Prevents CSRF attacks
+- **Secure**: `true` - Required for cross-origin requests (React frontend)
+- **SameSite**: `None` - Required for cross-origin cookies to work with React frontends
 - **Expires**: 7 days from creation
+- **Domain**: `null` - Let browser handle domain automatically for cross-origin scenarios
 
 ### 3. Middleware Implementation
 
@@ -47,8 +48,8 @@ Updated CORS policy to include `AllowCredentials()` which is required for cookie
 - **Name**: `auth_token`
 - **Value**: JWT token
 - **HttpOnly**: Yes
-- **Secure**: Yes (production only)
-- **SameSite**: Strict
+- **Secure**: Yes (required for cross-origin)
+- **SameSite**: None (required for React frontend cross-origin)
 - **Path**: `/`
 - **Expires**: 7 days
 

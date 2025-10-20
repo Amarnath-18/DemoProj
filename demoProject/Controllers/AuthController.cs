@@ -25,12 +25,16 @@ namespace demoProject.Controllers
 
         private CookieOptions GetCookieOptions()
         {
+            var isProduction = _environment.IsProduction();
             return new CookieOptions
             {
                 HttpOnly = true,
-                Secure = _environment.IsProduction(), // Only secure in production
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                // For cross-origin requests (React frontend), we need SameSite=None and Secure=true
+                Secure = true, // Must be true for SameSite=None
+                SameSite = SameSiteMode.None, // Required for cross-origin cookies in both dev and prod
+                Expires = DateTime.UtcNow.AddDays(7),
+                Path = "/", // Explicit path
+                Domain = null // Let browser handle domain automatically for cross-origin
             };
         }
 
@@ -119,8 +123,8 @@ namespace demoProject.Controllers
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            // Clear the authentication cookie
-            Response.Cookies.Delete("auth_token");
+            // Clear the authentication cookie with same options used to set it
+            Response.Cookies.Delete("auth_token", GetCookieOptions());
             return Ok(new { message = "Logged out successfully" });
         }
 

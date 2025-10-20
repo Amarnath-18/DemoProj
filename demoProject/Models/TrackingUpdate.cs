@@ -17,11 +17,7 @@ namespace demoProject.Models
         [StringLength(255)]
         public string? Location { get; set; }
 
-        [Column(TypeName = "decimal(10,8)")]
-        public decimal? Latitude { get; set; }
-
-        [Column(TypeName = "decimal(11,8)")]
-        public decimal? Longitude { get; set; }
+        // Removed coordinates - using location string only
 
         [StringLength(255)]
         public string? Remarks { get; set; }

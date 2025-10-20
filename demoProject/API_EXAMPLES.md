@@ -61,10 +61,10 @@ Content-Type: application/json
   "receiverPhone": "+1234567891",
   "originAddress": "123 Main St, New York, NY 10001",
   "destinationAddress": "456 Oak Ave, Los Angeles, CA 90001",
-  "originLatitude": 40.7128,
-  "originLongitude": -74.0060,
-  "destinationLatitude": 34.0522,
-  "destinationLongitude": -118.2437
+  "originCity": "New York",
+  "originRegion": "NY",
+  "destinationCity": "Los Angeles", 
+  "destinationRegion": "CA"
 }
 ```
 
@@ -92,10 +92,10 @@ GET /api/shipments/track/LST123456
   "receiverPhone": "+1234567891",
   "originAddress": "123 Main St, New York, NY 10001",
   "destinationAddress": "456 Oak Ave, Los Angeles, CA 90001",
-  "originLatitude": 40.7128,
-  "originLongitude": -74.0060,
-  "destinationLatitude": 34.0522,
-  "destinationLongitude": -118.2437,
+  "originCity": "New York",
+  "originRegion": "NY",
+  "destinationCity": "Los Angeles",
+  "destinationRegion": "CA",
   "status": "InTransit",
   "assignedDriver": {
     "id": 2,
@@ -112,8 +112,6 @@ GET /api/shipments/track/LST123456
       "id": 1,
       "status": "PickedUp",
       "location": "New York Distribution Center",
-      "latitude": 40.7128,
-      "longitude": -74.0060,
       "remarks": "Package picked up from sender",
       "updatedBy": {
         "id": 2,
@@ -139,13 +137,43 @@ Content-Type: application/json
 {
   "status": "InTransit",
   "location": "Dallas Transit Hub",
-  "latitude": 32.7767,
-  "longitude": -96.7970,
   "remarks": "Package in transit to destination"
 }
 ```
 
-### Assign Driver to Shipment (Admin)
+### Smart Driver Assignment (Admin)
+
+#### Get Driver Recommendations
+```http
+GET /api/shipments/1/driver-recommendations?priority=Balanced
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+#### Auto-Assign Best Driver
+```http
+POST /api/shipments/1/smart-assign
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "useAutoAssignment": true,
+  "priority": "Balanced"
+}
+```
+
+#### Manual Assignment with Specific Driver
+```http
+POST /api/shipments/1/smart-assign
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "preferredDriverId": "driver-guid-here",
+  "priority": "Experience"
+}
+```
+
+### Legacy Driver Assignment (Admin)
 
 ```http
 PUT /api/shipments/1/assign-driver
@@ -191,6 +219,63 @@ Content-Type: application/json
   "fullName": "John Updated Doe",
   "phone": "+1234567999"
 }
+```
+
+## Driver Management
+
+### Update Driver Location (Driver)
+
+```http
+POST /api/drivers/location
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "address": "Downtown Manhattan, NY"
+}
+```
+
+### Update Driver Status (Driver)
+
+```http
+PUT /api/drivers/status
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "status": "Available"
+}
+```
+
+### Create Driver Profile (Driver)
+
+```http
+POST /api/drivers/profile
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Update Driver Profile (Driver)
+
+```http
+PUT /api/drivers/profile
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "maxActiveShipments": 5,
+  "vehicleType": "Van",
+  "licenseNumber": "DL123456",
+  "workStartTime": "08:00:00",
+  "workEndTime": "18:00:00",
+  "preferredRegion": "Manhattan"
+}
+```
+
+### Get Driver Availability (Admin)
+
+```http
+GET /api/drivers/availability
+Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
 ## Reports and Analytics
@@ -319,20 +404,21 @@ The application includes sample data for testing:
 
 ## Using with Frontend (React)
 
-### Example React Service
+### Example React Service (Cookie-Based Authentication)
 
 ```javascript
 // api.js
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://localhost:5000/api'; // MUST use HTTPS for cookies
 
 class ApiService {
   constructor() {
-    this.token = localStorage.getItem('token');
+    // No need to store tokens - cookies handle authentication automatically
   }
 
   async login(email, password) {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
+      credentials: 'include', // REQUIRED for cookies
       headers: {
         'Content-Type': 'application/json',
       },
@@ -341,24 +427,63 @@ class ApiService {
 
     if (response.ok) {
       const data = await response.json();
-      this.token = data.token;
-      localStorage.setItem('token', data.token);
+      // Cookie is automatically set by browser
       return data;
     }
     throw new Error('Login failed');
   }
 
-  async getShipments() {
-    const response = await fetch(`${API_BASE_URL}/shipments`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-      },
+  async logout() {
+    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Logout failed');
+  }
+
+  async getCurrentUser() {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      credentials: 'include',
     });
 
     if (response.ok) {
       return await response.json();
     }
+    return null; // Not authenticated
+  }
+
+  async getShipments() {
+    const response = await fetch(`${API_BASE_URL}/shipments`, {
+      credentials: 'include', // Send cookies
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    if (response.status === 401) {
+      throw new Error('Authentication required');
+    }
     throw new Error('Failed to fetch shipments');
+  }
+
+  async createShipment(shipmentData) {
+    const response = await fetch(`${API_BASE_URL}/shipments`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(shipmentData),
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to create shipment');
   }
 
   async trackShipment(trackingNumber) {
@@ -368,6 +493,65 @@ class ApiService {
       return await response.json();
     }
     throw new Error('Shipment not found');
+  }
+
+  async updateDriverLocation(address) {
+    const response = await fetch(`${API_BASE_URL}/drivers/location`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ address }),
+    });
+
+    if (response.ok) {
+      return true;
+    }
+    throw new Error('Failed to update location');
+  }
+
+  async updateShipmentStatus(shipmentId, statusData) {
+    const response = await fetch(`${API_BASE_URL}/shipments/${shipmentId}/status`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(statusData),
+    });
+
+    if (response.ok) {
+      return true;
+    }
+    throw new Error('Failed to update shipment status');
+  }
+
+  async getDriverRecommendations(shipmentId, priority = 'Balanced') {
+    const response = await fetch(`${API_BASE_URL}/shipments/${shipmentId}/driver-recommendations?priority=${priority}`, {
+      credentials: 'include',
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to get driver recommendations');
+  }
+
+  async smartAssignDriver(shipmentId, assignmentData) {
+    const response = await fetch(`${API_BASE_URL}/shipments/${shipmentId}/smart-assign`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(assignmentData),
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to assign driver');
   }
 }
 

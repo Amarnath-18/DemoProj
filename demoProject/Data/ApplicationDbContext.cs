@@ -10,6 +10,7 @@ namespace demoProject.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Driver> Drivers { get; set; }
         public DbSet<Shipment> Shipments { get; set; }
         public DbSet<TrackingUpdate> TrackingUpdates { get; set; }
         public DbSet<Notification> Notifications { get; set; }
@@ -39,7 +40,7 @@ namespace demoProject.Data
                 entity.HasOne(e => e.Sender)
                     .WithMany(u => u.SentShipments)
                     .HasForeignKey(e => e.SenderId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.AssignedDriver)
                     .WithMany(u => u.AssignedShipments)
@@ -97,6 +98,18 @@ namespace demoProject.Data
                     .WithMany(u => u.AuditLogs)
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Driver configuration
+            modelBuilder.Entity<Driver>(entity =>
+            {
+                entity.HasKey(e => e.UserId);
+                entity.Property(e => e.Status).HasConversion<string>();
+
+                entity.HasOne(e => e.User)
+                    .WithOne()
+                    .HasForeignKey<Driver>(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

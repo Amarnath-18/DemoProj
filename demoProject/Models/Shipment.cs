@@ -41,17 +41,18 @@ namespace demoProject.Models
         [Required]
         public string DestinationAddress { get; set; } = string.Empty;
 
-        [Column(TypeName = "decimal(10,8)")]
-        public decimal? OriginLatitude { get; set; }
+        // Simplified location fields - no more coordinates!
+        [StringLength(100)]
+        public string? OriginCity { get; set; }
 
-        [Column(TypeName = "decimal(11,8)")]
-        public decimal? OriginLongitude { get; set; }
+        [StringLength(100)]
+        public string? OriginRegion { get; set; }
 
-        [Column(TypeName = "decimal(10,8)")]
-        public decimal? DestinationLatitude { get; set; }
+        [StringLength(100)]
+        public string? DestinationCity { get; set; }
 
-        [Column(TypeName = "decimal(11,8)")]
-        public decimal? DestinationLongitude { get; set; }
+        [StringLength(100)]
+        public string? DestinationRegion { get; set; }
 
         [Required]
         public ShipmentStatus Status { get; set; } = ShipmentStatus.Created;

@@ -10,10 +10,11 @@
 
 - **🔐 Role-Based Access Control**: Admin, Driver, and Customer roles with specific permissions
 - **📦 Shipment Management**: Create, track, and manage shipments with real-time status updates
-- **🚚 Driver Operations**: Driver assignment and status updates with GPS coordinates
+- **🚚 Driver Operations**: Driver assignment and status updates with address-based locations
 - **📊 Analytics Dashboard**: Comprehensive reporting and analytics for administrators
 - **📱 Real-time Tracking**: Public shipment tracking with detailed status history
 - **🔔 Smart Notifications**: Automated email/SMS notifications for status changes
+- **🧠 Smart Driver Assignment**: AI-powered driver recommendation and assignment system
 - **📋 PDF Reports**: Generate and download detailed shipment reports
 - **🍪 Cookie Authentication**: Secure HTTP-only cookie-based authentication
 - **📚 API Documentation**: Comprehensive API guide with examples
@@ -93,6 +94,9 @@
 | `/api/users/{id}` | DELETE | Delete user accounts | ✅ Admin Only (Cannot delete other admins) |
 | `/api/users/drivers` | GET | List all drivers | ✅ Admin Only |
 | `/api/shipments/{id}/assign-driver` | PUT | Assign driver to shipment | ✅ Admin Only |
+| `/api/shipments/{id}/driver-recommendations` | GET | Get smart driver recommendations | ✅ Admin Only |
+| `/api/shipments/{id}/smart-assign` | POST | Smart driver assignment | ✅ Admin Only |
+| `/api/shipments/available-drivers` | GET | View driver availability | ✅ Admin Only |
 | `/api/reports/generate` | POST | Generate PDF reports | ✅ Admin Only |
 | `/api/reports/{id}/download` | GET | Download report files | ✅ Admin Only |
 | `/api/reports` | GET | List all generated reports | ✅ Admin Only |
@@ -189,6 +193,8 @@ query = currentUserRole switch
 | **View Own/Assigned Shipments** | ✅ | ✅ | ✅ | ❌ |
 | **Create Shipments** | ✅ | ❌ | ✅ | ❌ |
 | **Assign Drivers** | ✅ | ❌ | ❌ | ❌ |
+| **Smart Driver Assignment** | ✅ | ❌ | ❌ | ❌ |
+| **Driver Recommendations** | ✅ | ❌ | ❌ | ❌ |
 | **Update Shipment Status** | ✅ | ✅* | ❌ | ❌ |
 | **Generate Reports** | ✅ | ❌ | ❌ | ❌ |
 | **View Analytics** | ✅ | ❌ | ❌ | ❌ |
@@ -314,8 +320,10 @@ curl -X POST "http://localhost:5000/api/shipments" \
     "receiverEmail": "jane@example.com",
     "originAddress": "123 Main St, NYC",
     "destinationAddress": "456 Oak Ave, LA",
-    "originLatitude": 40.7128,
-    "originLongitude": -74.0060
+    "originCity": "New York",
+    "originRegion": "NY",
+    "destinationCity": "Los Angeles",
+    "destinationRegion": "CA"
   }'
 
 # Track shipment (Public)
@@ -327,9 +335,7 @@ curl -X PUT "http://localhost:5000/api/shipments/{id}/status" \
   -b cookies.txt \
   -d '{
     "status": "InTransit",
-    "location": "Highway Rest Stop",
-    "latitude": 39.7392,
-    "longitude": -104.9903,
+    "location": "Highway Rest Stop, Denver Area",
     "remarks": "Package in transit, on schedule"
   }'
 ```
@@ -340,7 +346,20 @@ curl -X PUT "http://localhost:5000/api/shipments/{id}/status" \
 curl -X GET "http://localhost:5000/api/reports/analytics" \
   -b cookies.txt
 
-# Assign driver to shipment
+# Get smart driver recommendations
+curl -X GET "http://localhost:5000/api/shipments/{id}/driver-recommendations?priority=Balanced" \
+  -b cookies.txt
+
+# Smart driver assignment (auto-assign best driver)
+curl -X POST "http://localhost:5000/api/shipments/{id}/smart-assign" \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "useAutoAssignment": true,
+    "priority": "Balanced"
+  }'
+
+# Manual driver assignment (legacy)
 curl -X PUT "http://localhost:5000/api/shipments/{id}/assign-driver" \
   -H "Content-Type: application/json" \
   -b cookies.txt \
@@ -398,8 +417,7 @@ erDiagram
         guid ShipmentId FK
         string Status
         string Location
-        decimal Latitude
-        decimal Longitude
+        string Remarks
         guid UpdatedBy FK
         datetime Timestamp
     }
@@ -745,6 +763,8 @@ _logger.LogError(ex, "Error processing shipment {ShipmentId}", shipmentId);
 ### 📖 **Documentation**
 - [API Examples](API_EXAMPLES.md) - Detailed API usage examples
 - [Frontend Integration Guide](FRONTEND_API_GUIDE.md) - Complete frontend integration guide
+- [Smart Driver Assignment Guide](DRIVER_ASSIGNMENT_GUIDE.md) - Comprehensive driver assignment documentation
+- [Driver Assignment Quick Start](DRIVER_ASSIGNMENT_README.md) - Quick start guide for driver assignment
 - [Cookie Authentication Guide](COOKIE_AUTH_GUIDE.md) - Cookie-based auth implementation
 
 ### 🔗 **Related Technologies**

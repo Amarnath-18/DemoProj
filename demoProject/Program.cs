@@ -47,10 +47,22 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001") // React app URLs
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); // Required for cookies
+        if (builder.Environment.IsDevelopment())
+        {
+            // Development: Allow HTTP origins
+            policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "https://localhost:5173")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // Required for cookies
+        }
+        else
+        {
+            // Production: Only HTTPS origins (replace with your actual production URLs)
+            policy.WithOrigins("https://yourdomain.com", "https://www.yourdomain.com")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // Required for cookies
+        }
     });
 });
 
@@ -58,7 +70,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportService>();
-builder.Services.AddScoped<IDataSeeder, DataSeeder>();
+// DataSeeder removed - not needed
+builder.Services.AddScoped<IDriverAssignmentService, DriverAssignmentService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -109,29 +122,32 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    // Remove manual CORS headers - let the CORS policy handle it
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Logistic Shipment Tracker API V1");
-        c.RoutePrefix = "swagger"; // Swagger at /swagger (https://localhost:7110/swagger)
+        c.RoutePrefix = "swagger";
     });
 }
 
+// Configure HTTPS redirection - always use HTTPS for secure cookies
 app.UseHttpsRedirection();
 
-// Enable serving static files
 app.UseStaticFiles();
 
-// Use CORS
+app.UseRouting(); // Make routing explicit
+
+// CORS must come before authentication
 app.UseCors("AllowFrontend");
 
-// Use custom middleware to extract token from cookies
+// Cookie to header middleware must come before authentication
 app.UseCookieToHeader();
 
-// Use Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 
 app.Run();

@@ -141,6 +141,7 @@ namespace demoProject.Controllers
                 return BadRequest("Cannot delete admin users");
             }
 
+            // With cascade delete configured, related shipments will be automatically deleted
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
 

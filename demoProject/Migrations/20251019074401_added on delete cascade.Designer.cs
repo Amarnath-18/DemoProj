@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using demoProject.Data;
@@ -11,9 +12,11 @@ using demoProject.Data;
 namespace demoProject.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251019074401_added on delete cascade")]
+    partial class addedondeletecascade
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,63 +54,6 @@ namespace demoProject.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("AuditLogs");
-                });
-
-            modelBuilder.Entity("demoProject.Models.Driver", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("CompletedShipments")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("CurrentAddress")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastActiveTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastLocationUpdate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LicenseNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("MaxActiveShipments")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PreferredRegion")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<decimal>("Rating")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TotalRatings")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("VehicleType")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<TimeOnly?>("WorkEndTime")
-                        .HasColumnType("time without time zone");
-
-                    b.Property<TimeOnly?>("WorkStartTime")
-                        .HasColumnType("time without time zone");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("Drivers");
                 });
 
             modelBuilder.Entity("demoProject.Models.Notification", b =>
@@ -195,25 +141,21 @@ namespace demoProject.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("DestinationCity")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("DestinationLatitude")
+                        .HasColumnType("decimal(10,8)");
 
-                    b.Property<string>("DestinationRegion")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("DestinationLongitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("OriginAddress")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("OriginCity")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("OriginLatitude")
+                        .HasColumnType("decimal(10,8)");
 
-                    b.Property<string>("OriginRegion")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<decimal?>("OriginLongitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("ReceiverEmail")
                         .IsRequired()
@@ -262,9 +204,15 @@ namespace demoProject.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(10,8)");
+
                     b.Property<string>("Location")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(11,8)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(255)
@@ -342,17 +290,6 @@ namespace demoProject.Migrations
                         .WithMany("AuditLogs")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("demoProject.Models.Driver", b =>
-                {
-                    b.HasOne("demoProject.Models.User", "User")
-                        .WithOne()
-                        .HasForeignKey("demoProject.Models.Driver", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");

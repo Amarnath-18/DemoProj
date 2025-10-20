@@ -14,11 +14,15 @@ namespace demoProject.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var token = context.Request.Cookies["auth_token"];
-            
-            if (!string.IsNullOrEmpty(token))
+            // Only add Authorization header if it doesn't already exist
+            if (!context.Request.Headers.ContainsKey("Authorization"))
             {
-                context.Request.Headers["Authorization"] = "Bearer " + token;
+                var token = context.Request.Cookies["auth_token"];
+                
+                if (!string.IsNullOrEmpty(token))
+                {
+                    context.Request.Headers["Authorization"] = "Bearer " + token;
+                }
             }
 
             await _next(context);

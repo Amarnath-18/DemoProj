@@ -23,10 +23,11 @@ namespace demoProject.DTOs
         [Required]
         public string DestinationAddress { get; set; } = string.Empty;
 
-        public decimal? OriginLatitude { get; set; }
-        public decimal? OriginLongitude { get; set; }
-        public decimal? DestinationLatitude { get; set; }
-        public decimal? DestinationLongitude { get; set; }
+        // Simplified location fields - no coordinates needed!
+        public string? OriginCity { get; set; }
+        public string? OriginRegion { get; set; }
+        public string? DestinationCity { get; set; }
+        public string? DestinationRegion { get; set; }
     }
 
     public class AssignDriverRequest
@@ -41,8 +42,6 @@ namespace demoProject.DTOs
         public ShipmentStatus Status { get; set; }
 
         public string? Location { get; set; }
-        public decimal? Latitude { get; set; }
-        public decimal? Longitude { get; set; }
         public string? Remarks { get; set; }
     }
 
@@ -56,10 +55,10 @@ namespace demoProject.DTOs
         public string? ReceiverPhone { get; set; }
         public string OriginAddress { get; set; } = string.Empty;
         public string DestinationAddress { get; set; } = string.Empty;
-        public decimal? OriginLatitude { get; set; }
-        public decimal? OriginLongitude { get; set; }
-        public decimal? DestinationLatitude { get; set; }
-        public decimal? DestinationLongitude { get; set; }
+        public string? OriginCity { get; set; }
+        public string? OriginRegion { get; set; }
+        public string? DestinationCity { get; set; }
+        public string? DestinationRegion { get; set; }
         public ShipmentStatus Status { get; set; }
         public UserResponse? AssignedDriver { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -72,8 +71,6 @@ namespace demoProject.DTOs
         public Guid Id { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Location { get; set; }
-        public decimal? Latitude { get; set; }
-        public decimal? Longitude { get; set; }
         public string? Remarks { get; set; }
         public UserResponse UpdatedBy { get; set; } = null!;
         public DateTime Timestamp { get; set; }
