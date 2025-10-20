@@ -400,6 +400,17 @@ namespace demoProject.Controllers
                 return Forbid();
             }
 
+            // Prevent updates once shipment is delivered or cancelled
+            if (shipment.Status == ShipmentStatus.Delivered)
+            {
+                return BadRequest("Cannot update a shipment that has already been delivered");
+            }
+
+            if (shipment.Status == ShipmentStatus.Cancelled)
+            {
+                return BadRequest("Cannot update a shipment that has been cancelled");
+            }
+
             shipment.Status = request.Status;
             shipment.UpdatedAt = DateTime.UtcNow;
 
@@ -414,10 +425,89 @@ namespace demoProject.Controllers
             };
 
             _context.TrackingUpdates.Add(trackingUpdate);
+
+            // Handle delivery completion logic
+            if (request.Status == ShipmentStatus.Delivered)
+            {
+                await HandleShipmentDeliveryAsync(currentUserId);
+            }
+
+            // Handle cancellation logic
+            if (request.Status == ShipmentStatus.Cancelled)
+            {
+                await HandleShipmentCancellationAsync(currentUserId);
+            }
+
             await _context.SaveChangesAsync();
 
             // Send notification
             await _notificationService.NotifyShipmentStatusChangeAsync(shipment, request.Status.ToString());
+
+            return NoContent();
+        }
+
+        [HttpPut("{id}/cancel")]
+        [Authorize(Roles = "Admin,Customer")]
+        public async Task<IActionResult> CancelShipment(Guid id, CancelShipmentRequest request)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var currentUserId))
+            {
+                return BadRequest("Invalid user ID");
+            }
+            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            var shipment = await _context.Shipments
+                .Include(s => s.AssignedDriver)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (shipment == null)
+            {
+                return NotFound();
+            }
+
+            // Check permissions - customers can only cancel their own shipments
+            if (currentUserRole == "Customer" && shipment.SenderId != currentUserId)
+            {
+                return Forbid();
+            }
+
+            // Prevent cancelling already delivered or cancelled shipments
+            if (shipment.Status == ShipmentStatus.Delivered)
+            {
+                return BadRequest("Cannot cancel a shipment that has already been delivered");
+            }
+
+            if (shipment.Status == ShipmentStatus.Cancelled)
+            {
+                return BadRequest("Shipment is already cancelled");
+            }
+
+            shipment.Status = ShipmentStatus.Cancelled;
+            shipment.UpdatedAt = DateTime.UtcNow;
+
+            // Create tracking update
+            var trackingUpdate = new TrackingUpdate
+            {
+                ShipmentId = id,
+                Status = ShipmentStatus.Cancelled.ToString(),
+                Location = request.Location ?? "System",
+                Remarks = request.Reason ?? "Shipment cancelled",
+                UpdatedBy = currentUserId
+            };
+
+            _context.TrackingUpdates.Add(trackingUpdate);
+
+            // Handle cancellation logic if shipment was assigned to a driver
+            if (shipment.AssignedDriverId.HasValue)
+            {
+                await HandleShipmentCancellationAsync(shipment.AssignedDriverId.Value);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Send notification
+            await _notificationService.NotifyShipmentStatusChangeAsync(shipment, "Cancelled");
 
             return NoContent();
         }
@@ -492,6 +582,73 @@ namespace demoProject.Controllers
             };
 
             return Ok(response);
+        }
+
+        private async Task HandleShipmentDeliveryAsync(Guid driverId)
+        {
+            // Get the driver profile
+            var driver = await _context.Drivers.FindAsync(driverId);
+            if (driver == null) return;
+
+            // Increment completed shipments count
+            driver.CompletedShipments++;
+            driver.LastActiveTime = DateTime.UtcNow;
+
+            // Check remaining active shipments for this driver
+            var activeShipmentsCount = await _context.Shipments
+                .Where(s => s.AssignedDriverId == driverId && 
+                           s.Status != ShipmentStatus.Delivered && 
+                           s.Status != ShipmentStatus.Cancelled)
+                .CountAsync();
+
+            // Update driver status based on remaining workload
+            if (activeShipmentsCount == 0)
+            {
+                // No more active shipments - driver becomes available
+                driver.Status = DriverStatus.Available;
+            }
+            else if (activeShipmentsCount < driver.MaxActiveShipments)
+            {
+                // Still has capacity - ensure driver is available for new assignments
+                if (driver.Status == DriverStatus.Busy)
+                {
+                    driver.Status = DriverStatus.Available;
+                }
+            }
+            // If still at max capacity, keep current status
+        }
+
+        private async Task HandleShipmentCancellationAsync(Guid driverId)
+        {
+            // Get the driver profile
+            var driver = await _context.Drivers.FindAsync(driverId);
+            if (driver == null) return;
+
+            // Update last active time
+            driver.LastActiveTime = DateTime.UtcNow;
+
+            // Check remaining active shipments for this driver
+            var activeShipmentsCount = await _context.Shipments
+                .Where(s => s.AssignedDriverId == driverId && 
+                           s.Status != ShipmentStatus.Delivered && 
+                           s.Status != ShipmentStatus.Cancelled)
+                .CountAsync();
+
+            // Update driver status based on remaining workload
+            if (activeShipmentsCount == 0)
+            {
+                // No more active shipments - driver becomes available
+                driver.Status = DriverStatus.Available;
+            }
+            else if (activeShipmentsCount < driver.MaxActiveShipments)
+            {
+                // Still has capacity - ensure driver is available for new assignments
+                if (driver.Status == DriverStatus.Busy)
+                {
+                    driver.Status = DriverStatus.Available;
+                }
+            }
+            // If still at max capacity, keep current status
         }
 
         private static string GenerateTrackingNumber()

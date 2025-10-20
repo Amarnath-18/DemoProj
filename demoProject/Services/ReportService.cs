@@ -25,15 +25,30 @@ namespace demoProject.Services
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
+        private static DateTime EnsureUtc(DateTime dateTime)
+        {
+            return dateTime.Kind switch
+            {
+                DateTimeKind.Utc => dateTime,
+                DateTimeKind.Local => dateTime.ToUniversalTime(),
+                DateTimeKind.Unspecified => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc),
+                _ => dateTime
+            };
+        }
+
         public async Task<string> GenerateShipmentReportAsync(DateTime startDate, DateTime endDate, ReportType reportType, Guid userId)
         {
+            // Ensure dates are in UTC for PostgreSQL compatibility
+            var utcStartDate = EnsureUtc(startDate);
+            var utcEndDate = EnsureUtc(endDate);
+
             var shipments = await _context.Shipments
                 .Include(s => s.Sender)
                 .Include(s => s.AssignedDriver)
-                .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate)
+                .Where(s => s.CreatedAt >= utcStartDate && s.CreatedAt <= utcEndDate)
                 .ToListAsync();
 
-            var pdfBytes = await GenerateShipmentReportPdfAsync(startDate, endDate);
+            var pdfBytes = await GenerateShipmentReportPdfAsync(utcStartDate, utcEndDate);
 
             // Save report to file
             var fileName = $"shipment_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.pdf";
@@ -43,13 +58,13 @@ namespace demoProject.Services
 
             await File.WriteAllBytesAsync(filePath, pdfBytes);
 
-            // Save report record to database
+            // Save report record to database - ensure UTC dates
             var report = new Report
             {
                 GeneratedBy = userId,
                 ReportType = reportType,
-                StartDate = startDate.Date,
-                EndDate = endDate.Date,
+                StartDate = EnsureUtc(utcStartDate.Date),
+                EndDate = EnsureUtc(utcEndDate.Date),
                 FilePath = filePath,
                 GeneratedAt = DateTime.UtcNow
             };
@@ -62,10 +77,14 @@ namespace demoProject.Services
 
         public async Task<byte[]> GenerateShipmentReportPdfAsync(DateTime startDate, DateTime endDate)
         {
+            // Ensure dates are in UTC for PostgreSQL compatibility
+            var utcStartDate = EnsureUtc(startDate);
+            var utcEndDate = EnsureUtc(endDate);
+
             var shipments = await _context.Shipments
                 .Include(s => s.Sender)
                 .Include(s => s.AssignedDriver)
-                .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate)
+                .Where(s => s.CreatedAt >= utcStartDate && s.CreatedAt <= utcEndDate)
                 .ToListAsync();
 
             var document = Document.Create(container =>

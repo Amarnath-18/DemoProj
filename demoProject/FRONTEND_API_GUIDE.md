@@ -28,6 +28,16 @@ Production: https://your-domain.com/api
 }
 ```
 
+### **Important: Date Handling**
+**All DateTime values must be sent in UTC ISO 8601 format**
+- ? Correct: `"2024-01-01T00:00:00.000Z"`
+- ? Incorrect: `"2024-01-01"`, `"01/01/2024"`, local time formats
+
+```javascript
+// Always use .toISOString() for dates
+const dateValue = new Date("2024-01-01").toISOString();
+```
+
 ### **CRITICAL: React Frontend Cookie Setup**
 
 **For cookies to work with React, you MUST:**
@@ -810,9 +820,19 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
 ```json
 {
   "reportType": "Daily | Weekly | Monthly | Custom (required)",
-  "startDate": "2024-01-01 (required)",
-  "endDate": "2024-01-07 (required)"
+  "startDate": "2024-01-01T00:00:00.000Z (required, ISO 8601 UTC format)",
+  "endDate": "2024-01-07T23:59:59.999Z (required, ISO 8601 UTC format)"
 }
+```
+
+**Important:** Always send dates in UTC ISO 8601 format. In JavaScript:
+```javascript
+// Correct way to send dates
+const request = {
+  reportType: "Weekly",
+  startDate: new Date("2024-01-01").toISOString(), // "2024-01-01T00:00:00.000Z"
+  endDate: new Date("2024-01-07").toISOString()    // "2024-01-07T00:00:00.000Z"
+};
 ```
 
 #### Response (200 OK)

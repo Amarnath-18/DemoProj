@@ -45,6 +45,12 @@ namespace demoProject.DTOs
         public string? Remarks { get; set; }
     }
 
+    public class CancelShipmentRequest
+    {
+        public string? Reason { get; set; }
+        public string? Location { get; set; }
+    }
+
     public class ShipmentResponse
     {
         public Guid Id { get; set; }

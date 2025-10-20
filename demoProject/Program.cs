@@ -18,6 +18,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+// Configure PostgreSQL to use UTC timestamps
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
+
 // Add Entity Framework
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

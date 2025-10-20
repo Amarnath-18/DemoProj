@@ -15,6 +15,7 @@ namespace demoProject.Services
         Task<List<DriverAvailabilityResponse>> GetAllDriversAvailabilityAsync();
         Task<bool> CreateDriverProfileAsync(Guid userId);
         Task<bool> UpdateDriverProfileAsync(Guid driverId, UpdateDriverProfileRequest request);
+        Task<int> GetActiveShipmentsCountAsync(Guid driverId);
     }
 
     public class DriverAssignmentService : IDriverAssignmentService
@@ -247,6 +248,15 @@ namespace demoProject.Services
 
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> GetActiveShipmentsCountAsync(Guid driverId)
+        {
+            return await _context.Shipments
+                .Where(s => s.AssignedDriverId == driverId && 
+                           s.Status != ShipmentStatus.Delivered && 
+                           s.Status != ShipmentStatus.Cancelled)
+                .CountAsync();
         }
 
         // SIMPLIFIED: Region/city-based matching instead of GPS coordinates
