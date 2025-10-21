@@ -1,0 +1,8 @@
+namespace demoProject.Services
+{
+    public interface IDistanceService
+    {
+        Task<double> CalculateDistanceAsync(string originAddress, string destinationAddress);
+        Task<(double latitude, double longitude)> GeocodeAddressAsync(string address);
+    }
+}

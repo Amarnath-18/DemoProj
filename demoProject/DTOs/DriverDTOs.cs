@@ -58,6 +58,16 @@ namespace demoProject.DTOs
         public int ActiveShipments { get; set; }
         public bool IsAvailable { get; set; }
         public string AvailabilityReason { get; set; } = string.Empty;
+        
+        // Rating details
+        public decimal Rating { get; set; }
+        public int CompletedShipments { get; set; }
+        public int TotalRatings { get; set; }
+        public DateTime? LastLocationUpdate { get; set; }
+        
+        // Performance metrics
+        public string PerformanceCategory { get; set; } = string.Empty;
+        public List<string> PerformanceFactors { get; set; } = new();
     }
 
     public class UpdateDriverProfileRequest

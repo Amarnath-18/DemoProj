@@ -1,0 +1,48 @@
+### Test Distance Calculation API
+
+# Test geocoding a single address
+GET https://localhost:7048/api/distance/geocode?address=New York, NY
+
+###
+
+# Test distance calculation between two addresses
+GET https://localhost:7048/api/distance/calculate?origin=New York, NY&destination=Los Angeles, CA
+
+###
+
+# Test distance calculation with more specific addresses
+GET https://localhost:7048/api/distance/calculate?origin=123 Main Street, New York, NY&destination=456 Oak Avenue, Los Angeles, CA
+
+###
+
+# Test with nearby addresses
+GET https://localhost:7048/api/distance/calculate?origin=Central Park, New York&destination=Times Square, New York
+
+###
+
+# Test cache statistics (requires admin authentication)
+# First login as admin
+POST https://localhost:7048/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@logistictracker.com",
+  "password": "Admin@123"
+}
+
+### (After login, use the cookie for admin endpoints)
+
+# Get cache statistics
+GET https://localhost:7048/api/distance/cache-stats
+
+###
+
+# Clear cache
+POST https://localhost:7048/api/distance/clear-cache
+
+###
+
+# Test driver recommendations with real distance (requires admin authentication)
+GET https://localhost:7048/api/shipments/{shipment-id}/driver-recommendations?priority=Distance
+
+###

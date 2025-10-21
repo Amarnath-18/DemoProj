@@ -69,11 +69,15 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add HttpClient for external services
+builder.Services.AddHttpClient();
+
 // Add custom services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportService>();
-// DataSeeder removed - not needed
+builder.Services.AddScoped<SmsService>();
+builder.Services.AddScoped<IDistanceService, NominatimDistanceService>();
 builder.Services.AddScoped<IDriverAssignmentService, DriverAssignmentService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

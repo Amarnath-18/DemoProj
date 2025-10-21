@@ -17,15 +17,18 @@ namespace demoProject.Services
         private readonly IConfiguration _configuration;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<NotificationService> _logger;
+        private readonly SmsService _smsService;
 
         public NotificationService(
             IConfiguration configuration,
             ApplicationDbContext context,
-            ILogger<NotificationService> logger)
+            ILogger<NotificationService> logger,
+            SmsService smsService)
         {
             _configuration = configuration;
             _context = context;
             _logger = logger;
+            _smsService = smsService;
         }
 
         public async Task SendEmailNotificationAsync(string email, string subject, string message)
@@ -57,10 +60,8 @@ namespace demoProject.Services
         {
             try
             {
-                // Implement SMS sending logic using Twilio or other SMS service
-                // For now, just log the message
-                _logger.LogInformation($"SMS would be sent to {phoneNumber}: {message}");
-                await Task.CompletedTask;
+                await _smsService.SendSmsAsync(phoneNumber, message);
+                _logger.LogInformation($"SMS sent to {phoneNumber}: {message}");
             }
             catch (Exception ex)
             {
