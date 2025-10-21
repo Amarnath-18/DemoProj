@@ -137,16 +137,26 @@ namespace demoProject.Controllers
                 })
                 .ToListAsync();
 
-            var monthlyStats = await _context.Shipments
+            // Get monthly data with separate year/month properties to avoid EF translation issues
+            var monthlyData = await _context.Shipments
                 .Where(s => s.CreatedAt >= DateTime.UtcNow.AddMonths(-12))
                 .GroupBy(s => new { s.CreatedAt.Year, s.CreatedAt.Month })
-                .Select(g => new MonthlyShipmentStats
+                .Select(g => new 
                 {
-                    Month = $"{g.Key.Year}-{g.Key.Month:D2}",
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
                     Count = g.Count()
                 })
-                .OrderBy(m => m.Month)
+                .OrderBy(m => m.Year)
+                .ThenBy(m => m.Month)
                 .ToListAsync();
+
+            // Format the month strings on the client side
+            var monthlyStats = monthlyData.Select(m => new MonthlyShipmentStats
+            {
+                Month = $"{m.Year}-{m.Month:D2}",
+                Count = m.Count
+            }).ToList();
 
             var analytics = new DashboardAnalytics
             {

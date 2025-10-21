@@ -584,6 +584,28 @@ namespace demoProject.Controllers
             return Ok(response);
         }
 
+        [HttpGet("{id}/rating-status")]
+        public async Task<ActionResult<ShipmentRatingStatusResponse>> CheckShipmentRatingStatus(Guid id)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? currentUserId = null;
+            
+            // Get current user ID if authenticated (but don't require it since method supports both scenarios)
+            if (!string.IsNullOrEmpty(userIdString) && Guid.TryParse(userIdString, out var parsedUserId))
+            {
+                currentUserId = parsedUserId;
+            }
+
+            var ratingStatus = await _driverAssignmentService.CheckShipmentRatingStatusAsync(id, currentUserId);
+            
+            if (ratingStatus == null)
+            {
+                return NotFound("Shipment not found");
+            }
+
+            return Ok(ratingStatus);
+        }
+
         private async Task HandleShipmentDeliveryAsync(Guid driverId)
         {
             // Get the driver profile

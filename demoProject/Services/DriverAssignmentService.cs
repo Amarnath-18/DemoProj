@@ -16,6 +16,10 @@ namespace demoProject.Services
         Task<bool> CreateDriverProfileAsync(Guid userId);
         Task<bool> UpdateDriverProfileAsync(Guid driverId, UpdateDriverProfileRequest request);
         Task<int> GetActiveShipmentsCountAsync(Guid driverId);
+        Task<bool> RateDriverAsync(Guid driverId, Guid customerId, RateDriverRequest request);
+        Task<bool> UpdateDriverVerificationAsync(Guid driverId, bool isVerified);
+        Task<DriverRatingResponse?> GetDriverRatingAsync(Guid driverId);
+        Task<ShipmentRatingStatusResponse?> CheckShipmentRatingStatusAsync(Guid shipmentId, Guid? userId = null);
     }
 
     public class DriverAssignmentService : IDriverAssignmentService
@@ -429,6 +433,237 @@ namespace demoProject.Services
                 return "Outside working hours";
 
             return "Available";
+        }
+
+        public async Task<bool> RateDriverAsync(Guid driverId, Guid customerId, RateDriverRequest request)
+        {
+            // Verify that the driver exists
+            var driver = await _context.Drivers
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.UserId == driverId);
+            
+            if (driver == null)
+                return false;
+
+            // Verify that the shipment exists and the customer was the sender
+            var shipment = await _context.Shipments
+                .FirstOrDefaultAsync(s => s.Id == request.ShipmentId && 
+                                         s.SenderId == customerId &&
+                                         s.AssignedDriverId == driverId &&
+                                         s.Status == ShipmentStatus.Delivered);
+            
+            if (shipment == null)
+                return false;
+
+            // Check if the customer has already rated this driver for this shipment
+            var existingRating = await _context.DriverRatings
+                .FirstOrDefaultAsync(dr => dr.CustomerId == customerId && 
+                                          dr.ShipmentId == request.ShipmentId);
+            
+            if (existingRating != null)
+                return false; // Already rated
+
+            // Create new rating
+            var driverRating = new DriverRating
+            {
+                DriverId = driverId,
+                CustomerId = customerId,
+                ShipmentId = request.ShipmentId,
+                Rating = request.Rating,
+                Comment = request.Comment,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.DriverRatings.Add(driverRating);
+
+            // Update driver's aggregated rating
+            await UpdateDriverAggregatedRating(driverId);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> UpdateDriverVerificationAsync(Guid driverId, bool isVerified)
+        {
+            var driver = await _context.Drivers.FindAsync(driverId);
+            if (driver == null)
+                return false;
+
+            driver.IsVerified = isVerified;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<DriverRatingResponse?> GetDriverRatingAsync(Guid driverId)
+        {
+            var driver = await _context.Drivers
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.UserId == driverId);
+            
+            if (driver == null)
+                return null;
+
+            // Get recent ratings with details
+            var recentRatings = await _context.DriverRatings
+                .Where(dr => dr.DriverId == driverId)
+                .Include(dr => dr.Customer)
+                .Include(dr => dr.Shipment)
+                .OrderByDescending(dr => dr.CreatedAt)
+                .Take(10)
+                .Select(dr => new DriverRatingDetail
+                {
+                    Rating = dr.Rating,
+                    Comment = dr.Comment,
+                    RatedAt = dr.CreatedAt,
+                    RatedByCustomer = dr.Customer.FullName,
+                    ShipmentTrackingNumber = dr.Shipment.TrackingNumber
+                })
+                .ToListAsync();
+
+            return new DriverRatingResponse
+            {
+                DriverId = driverId,
+                Driver = new UserResponse
+                {
+                    Id = driver.User.Id,
+                    FullName = driver.User.FullName,
+                    Email = driver.User.Email,
+                    Phone = driver.User.Phone,
+                    Role = driver.User.Role,
+                    CreatedAt = driver.User.CreatedAt
+                },
+                AverageRating = driver.Rating,
+                TotalRatings = driver.TotalRatings,
+                CompletedShipments = driver.CompletedShipments,
+                IsVerified = driver.IsVerified,
+                RecentRatings = recentRatings
+            };
+        }
+
+        public async Task<ShipmentRatingStatusResponse?> CheckShipmentRatingStatusAsync(Guid shipmentId, Guid? userId = null)
+        {
+            // Get shipment with all related data
+            var shipment = await _context.Shipments
+                .Include(s => s.AssignedDriver)
+                .Include(s => s.Sender)
+                .FirstOrDefaultAsync(s => s.Id == shipmentId);
+
+            if (shipment == null)
+                return null;
+
+            var response = new ShipmentRatingStatusResponse
+            {
+                ShipmentId = shipmentId,
+                TrackingNumber = shipment.TrackingNumber,
+                Driver = shipment.AssignedDriver != null ? new UserResponse
+                {
+                    Id = shipment.AssignedDriver.Id,
+                    FullName = shipment.AssignedDriver.FullName,
+                    Email = shipment.AssignedDriver.Email,
+                    Phone = shipment.AssignedDriver.Phone,
+                    Role = shipment.AssignedDriver.Role,
+                    CreatedAt = shipment.AssignedDriver.CreatedAt
+                } : null
+            };
+
+            // Check if shipment has been rated by any user
+            var anyRating = await _context.DriverRatings
+                .Include(dr => dr.Customer)
+                .FirstOrDefaultAsync(dr => dr.ShipmentId == shipmentId);
+
+            if (anyRating != null)
+            {
+                response.IsRated = true;
+                response.ExistingRating = new DriverRatingDetail
+                {
+                    Rating = anyRating.Rating,
+                    Comment = anyRating.Comment,
+                    RatedAt = anyRating.CreatedAt,
+                    RatedByCustomer = anyRating.Customer.FullName,
+                    ShipmentTrackingNumber = shipment.TrackingNumber
+                };
+            }
+            else
+            {
+                response.IsRated = false;
+            }
+
+            // Determine if the shipment can be rated (considering specific user if provided)
+            if (userId.HasValue)
+            {
+                // Check if specific user can rate this shipment
+                if (shipment.AssignedDriverId == null)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "No driver assigned to this shipment";
+                }
+                else if (shipment.Status != ShipmentStatus.Delivered)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "Shipment must be delivered before rating";
+                }
+                else if (shipment.SenderId != userId.Value)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "Only the sender can rate the driver for this shipment";
+                }
+                else if (response.IsRated)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "This shipment has already been rated";
+                }
+                else
+                {
+                    response.CanBeRated = true;
+                }
+            }
+            else
+            {
+                // General eligibility without specific user context
+                if (shipment.AssignedDriverId == null)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "No driver assigned to this shipment";
+                }
+                else if (shipment.Status != ShipmentStatus.Delivered)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "Shipment must be delivered before rating";
+                }
+                else if (response.IsRated)
+                {
+                    response.CanBeRated = false;
+                    response.RatingIneligibilityReason = "This shipment has already been rated";
+                }
+                else
+                {
+                    response.CanBeRated = true;
+                }
+            }
+
+            return response;
+        }
+
+        private async Task UpdateDriverAggregatedRating(Guid driverId)
+        {
+            var driver = await _context.Drivers.FindAsync(driverId);
+            if (driver == null)
+                return;
+
+            var ratings = await _context.DriverRatings
+                .Where(dr => dr.DriverId == driverId)
+                .ToListAsync();
+
+            if (ratings.Any())
+            {
+                driver.TotalRatings = ratings.Count;
+                driver.Rating = (decimal)ratings.Average(r => r.Rating);
+            }
+            else
+            {
+                driver.TotalRatings = 0;
+                driver.Rating = 0;
+            }
         }
     }
 }

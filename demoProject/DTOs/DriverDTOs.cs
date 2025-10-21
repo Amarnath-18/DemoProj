@@ -78,6 +78,59 @@ namespace demoProject.DTOs
         public string? PreferredRegion { get; set; }
     }
 
+    public class RateDriverRequest
+    {
+        [Required]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
+        public int Rating { get; set; }
+
+        [StringLength(500, ErrorMessage = "Comment cannot exceed 500 characters")]
+        public string? Comment { get; set; }
+
+        [Required]
+        public Guid ShipmentId { get; set; }
+    }
+
+    public class UpdateDriverVerificationRequest
+    {
+        [Required]
+        public bool IsVerified { get; set; }
+
+        [StringLength(200, ErrorMessage = "Reason cannot exceed 200 characters")]
+        public string? Reason { get; set; }
+    }
+
+    public class DriverRatingResponse
+    {
+        public Guid DriverId { get; set; }
+        public UserResponse Driver { get; set; } = null!;
+        public decimal AverageRating { get; set; }
+        public int TotalRatings { get; set; }
+        public int CompletedShipments { get; set; }
+        public bool IsVerified { get; set; }
+        public List<DriverRatingDetail> RecentRatings { get; set; } = new();
+    }
+
+    public class DriverRatingDetail
+    {
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+        public DateTime RatedAt { get; set; }
+        public string RatedByCustomer { get; set; } = string.Empty;
+        public string ShipmentTrackingNumber { get; set; } = string.Empty;
+    }
+
+    public class ShipmentRatingStatusResponse
+    {
+        public Guid ShipmentId { get; set; }
+        public string TrackingNumber { get; set; } = string.Empty;
+        public bool IsRated { get; set; }
+        public DriverRatingDetail? ExistingRating { get; set; }
+        public UserResponse? Driver { get; set; }
+        public bool CanBeRated { get; set; }
+        public string? RatingIneligibilityReason { get; set; }
+    }
+
     public enum AssignmentPriority
     {
         Distance,    // Prioritize closest drivers

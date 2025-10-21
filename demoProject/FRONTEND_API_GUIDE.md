@@ -7,8 +7,9 @@ This guide provides all the API endpoints with request and response schemas for 
 2. [Authentication APIs](#authentication-apis)
 3. [User Management APIs](#user-management-apis)
 4. [Shipment Management APIs](#shipment-management-apis)
-5. [Reports & Analytics APIs](#reports--analytics-apis)
-6. [Error Handling](#error-handling)
+5. [Driver Management APIs](#driver-management-apis)
+6. [Reports & Analytics APIs](#reports--analytics-apis)
+7. [Error Handling](#error-handling)
 
 ---
 
@@ -664,6 +665,112 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
 }
 ```
 
+### 11. Check Shipment Rating Status
+**Endpoint:** `GET /api/shipments/{id}/rating-status`
+**Access:** Authenticated (role-based access applies)
+**Description:** Check if a shipment has been rated and whether it can be rated by the current user
+
+#### Response (200 OK)
+```json
+{
+  "shipmentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "trackingNumber": "LST123456",
+  "isRated": true,
+  "existingRating": {
+    "rating": 5,
+    "comment": "Excellent service, very professional driver",
+    "ratedAt": "2024-01-01T12:00:00Z",
+    "ratedByCustomer": "John Doe",
+    "shipmentTrackingNumber": "LST123456"
+  },
+  "driver": {
+    "id": 2,
+    "fullName": "Mike Driver",
+    "email": "mike.driver@logistictracker.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "canBeRated": false,
+  "ratingIneligibilityReason": "This shipment has already been rated"
+}
+```
+
+#### Response Examples
+
+**Shipment that can be rated:**
+```json
+{
+  "shipmentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "trackingNumber": "LST123457",
+  "isRated": false,
+  "existingRating": null,
+  "driver": {
+    "id": 2,
+    "fullName": "Mike Driver",
+    "email": "mike.driver@logistictracker.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "canBeRated": true,
+  "ratingIneligibilityReason": null
+}
+```
+
+**Shipment that cannot be rated (not delivered):**
+```json
+{
+  "shipmentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "trackingNumber": "LST123458",
+  "isRated": false,
+  "existingRating": null,
+  "driver": {
+    "id": 2,
+    "fullName": "Mike Driver",
+    "email": "mike.driver@logistictracker.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "canBeRated": false,
+  "ratingIneligibilityReason": "Shipment must be delivered before rating"
+}
+```
+
+**Shipment with no driver assigned:**
+```json
+{
+  "shipmentId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "trackingNumber": "LST123459",
+  "isRated": false,
+  "existingRating": null,
+  "driver": null,
+  "canBeRated": false,
+  "ratingIneligibilityReason": "No driver assigned to this shipment"
+}
+```
+
+#### Error Response (404 Not Found)
+```json
+{
+  "message": "Shipment not found"
+}
+```
+
+#### Usage Notes
+- **For authenticated users:** The API will check if the current user can rate the shipment based on their relationship to it (only the sender can rate)
+- **For unauthenticated access:** The API will provide general rating status without user-specific eligibility checks
+- **Access control:** Users can only check rating status for shipments they have access to based on their role:
+  - **Admin:** Can check any shipment
+  - **Customer:** Can check their own shipments
+  - **Driver:** Can check shipments assigned to them
+- **Rating eligibility:** A shipment can only be rated if:
+  - It has a driver assigned
+  - It has been delivered
+  - It hasn't been rated yet
+  - The requester is the shipment sender (for user-specific checks)
+
 ---
 
 ## Driver Management APIs
@@ -756,6 +863,98 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
     "availabilityReason": "Available"
   }
 ]
+```
+
+### 6. Rate Driver
+**Endpoint:** `POST /api/drivers/{driverId}/rate`
+**Access:** Customer or Admin
+**Description:** Rate a driver after completed shipment
+
+#### Request Body
+```json
+{
+  "rating": "number (1-5, required)",
+  "comment": "string (optional, max 500 chars)",
+  "shipmentId": "guid (required)"
+}
+```
+
+#### Response (204 No Content)
+
+#### Error Response (400 Bad Request)
+```json
+{
+  "message": "Unable to rate driver. Driver not found or you haven't completed a shipment with this driver."
+}
+```
+
+### 7. Update Driver Verification
+**Endpoint:** `PUT /api/drivers/{driverId}/verification`
+**Access:** Admin only
+**Description:** Verify or unverify a driver
+
+#### Request Body
+```json
+{
+  "isVerified": "boolean (required)",
+  "reason": "string (optional, max 200 chars)"
+}
+```
+
+#### Response (204 No Content)
+
+#### Error Response (404 Not Found)
+```json
+{
+  "message": "Driver not found"
+}
+```
+
+### 8. Get Driver Rating History
+**Endpoint:** `GET /api/drivers/{driverId}/ratings`
+**Access:** Admin only
+**Description:** Get driver rating history and statistics
+
+#### Response (200 OK)
+```json
+{
+  "driverId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "driver": {
+    "id": 2,
+    "fullName": "Mike Driver",
+    "email": "mike.driver@logistictracker.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "averageRating": 4.6,
+  "totalRatings": 25,
+  "completedShipments": 150,
+  "isVerified": true,
+  "recentRatings": [
+    {
+      "rating": 5,
+      "comment": "Excellent service, very professional driver",
+      "ratedAt": "2024-01-01T12:00:00Z",
+      "ratedByCustomer": "John Doe",
+      "shipmentTrackingNumber": "LST123456"
+    },
+    {
+      "rating": 4,
+      "comment": "Good service, on time delivery",
+      "ratedAt": "2024-01-01T10:00:00Z",
+      "ratedByCustomer": "Jane Smith",
+      "shipmentTrackingNumber": "LST123457"
+    }
+  ]
+}
+```
+
+#### Error Response (404 Not Found)
+```json
+{
+  "message": "Driver not found"
+}
 ```
 
 ---

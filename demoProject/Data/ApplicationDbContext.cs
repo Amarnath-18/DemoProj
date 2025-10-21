@@ -16,6 +16,7 @@ namespace demoProject.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Report> Reports { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<DriverRating> DriverRatings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -121,6 +122,30 @@ namespace demoProject.Data
                 entity.HasOne(e => e.User)
                     .WithOne()
                     .HasForeignKey<Driver>(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // DriverRating configuration
+            modelBuilder.Entity<DriverRating>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                // Ensure one rating per customer per shipment
+                entity.HasIndex(e => new { e.CustomerId, e.ShipmentId }).IsUnique();
+
+                entity.HasOne(e => e.Driver)
+                    .WithMany()
+                    .HasForeignKey(e => e.DriverId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Shipment)
+                    .WithMany()
+                    .HasForeignKey(e => e.ShipmentId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

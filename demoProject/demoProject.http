@@ -1,6 +1,27 @@
-@demoProject_HostAddress = http://localhost:5277
+@demoProject_HostAddress = https://localhost:5000/api
 
-GET {{demoProject_HostAddress}}/weatherforecast/
+### Test Shipment Rating Status API
+
+# Check rating status for a specific shipment (replace with actual shipment ID)
+GET {{demoProject_HostAddress}}/shipments/3fa85f64-5717-4562-b3fc-2c963f66afa6/rating-status
+Accept: application/json
+
+### 
+
+# Test with authentication (you need to login first)
+# Login first
+POST {{demoProject_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "password123"
+}
+
+###
+
+# Then check rating status as authenticated user
+GET {{demoProject_HostAddress}}/shipments/3fa85f64-5717-4562-b3fc-2c963f66afa6/rating-status
 Accept: application/json
 
 ###

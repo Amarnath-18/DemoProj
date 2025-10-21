@@ -94,5 +94,59 @@ namespace demoProject.Controllers
             var drivers = await _driverAssignmentService.GetAllDriversAvailabilityAsync();
             return Ok(drivers);
         }
+
+        /// <summary>
+        /// Rate a driver after completed shipment
+        /// </summary>
+        [HttpPost("{driverId}/rate")]
+        [Authorize(Roles = "Customer,Admin")]
+        public async Task<IActionResult> RateDriver(Guid driverId, [FromBody] RateDriverRequest request)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var currentUserId))
+            {
+                return BadRequest("Invalid user ID");
+            }
+
+            var success = await _driverAssignmentService.RateDriverAsync(driverId, currentUserId, request);
+            if (!success)
+            {
+                return BadRequest("Unable to rate driver. Driver not found or you haven't completed a shipment with this driver.");
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Verify or unverify a driver (Admin only)
+        /// </summary>
+        [HttpPut("{driverId}/verification")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateDriverVerification(Guid driverId, [FromBody] UpdateDriverVerificationRequest request)
+        {
+            var success = await _driverAssignmentService.UpdateDriverVerificationAsync(driverId, request.IsVerified);
+            if (!success)
+            {
+                return NotFound("Driver not found");
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Get driver rating history
+        /// </summary>
+        [HttpGet("{driverId}/ratings")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<DriverRatingResponse>> GetDriverRating(Guid driverId)
+        {
+            var rating = await _driverAssignmentService.GetDriverRatingAsync(driverId);
+            if (rating == null)
+            {
+                return NotFound("Driver not found");
+            }
+
+            return Ok(rating);
+        }
     }
 }
