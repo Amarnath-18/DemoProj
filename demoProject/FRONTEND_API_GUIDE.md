@@ -8,8 +8,9 @@ This guide provides all the API endpoints with request and response schemas for 
 3. [User Management APIs](#user-management-apis)
 4. [Shipment Management APIs](#shipment-management-apis)
 5. [Driver Management APIs](#driver-management-apis)
-6. [Reports & Analytics APIs](#reports--analytics-apis)
-7. [Error Handling](#error-handling)
+6. [Distance & Location APIs](#distance--location-apis)
+7. [Reports & Analytics APIs](#reports--analytics-apis)
+8. [Error Handling](#error-handling)
 
 ---
 
@@ -137,7 +138,131 @@ export const useAuth = () => {
 
 ---
 
-## Authentication APIs
+## User Management APIs
+
+### 1. Get All Users
+**Endpoint:** `GET /api/users`
+**Access:** Admin only
+**Description:** Get list of all users with optional role filtering
+
+#### Query Parameters
+```
+?role=Admin|Driver|Customer (optional - filter by role)
+```
+
+#### Response (200 OK)
+```json
+[
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "fullName": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1234567890",
+    "role": "Customer",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+    "fullName": "Mike Driver",
+    "email": "mike.driver@example.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### 2. Get User by ID
+**Endpoint:** `GET /api/users/{id}`
+**Access:** Authenticated (users can only view own profile unless Admin)
+**Description:** Get specific user details
+
+#### Response (200 OK)
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "fullName": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+1234567890",
+  "role": "Customer",
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
+#### Error Response (403 Forbidden)
+```json
+{
+  "message": "Forbidden"
+}
+```
+
+### 3. Update User
+**Endpoint:** `PUT /api/users/{id}`
+**Access:** Authenticated (users can only update own profile unless Admin)
+**Description:** Update user information
+
+#### Request Body
+```json
+{
+  "fullName": "string (optional, max 100 chars)",
+  "phone": "string (optional, valid phone)",
+  "role": "Admin | Driver | Customer (Admin only can change roles)"
+}
+```
+
+#### Response (204 No Content)
+
+#### Error Response (403 Forbidden)
+```json
+{
+  "message": "Forbidden"
+}
+```
+
+### 4. Delete User
+**Endpoint:** `DELETE /api/users/{id}`
+**Access:** Admin only
+**Description:** Delete a user account
+
+#### Response (204 No Content)
+
+#### Error Response (404 Not Found)
+```json
+{
+  "message": "User not found"
+}
+```
+
+### 5. Get All Drivers
+**Endpoint:** `GET /api/users/drivers`
+**Access:** Admin only
+**Description:** Get list of all users with Driver role
+
+#### Response (200 OK)
+```json
+[
+  {
+    "id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+    "fullName": "Mike Driver",
+    "email": "mike.driver@example.com",
+    "phone": "+1234567892",
+    "role": "Driver",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  {
+    "id": "5fa85f64-5717-4562-b3fc-2c963f66afa8",
+    "fullName": "Sarah Driver",
+    "email": "sarah.driver@example.com",
+    "phone": "+1234567893",
+    "role": "Driver",
+    "createdAt": "2024-01-02T00:00:00Z"
+  }
+]
+```
+
+---
+
+## Shipment Management APIs
 
 ### 1. Register User
 **Endpoint:** `POST /api/auth/register`
@@ -959,12 +1084,161 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
 
 ---
 
+## Distance & Location APIs
+
+### 1. Calculate Distance
+**Endpoint:** `GET /api/distance/calculate`
+**Access:** Public (for testing purposes)
+**Description:** Calculate distance between two addresses
+
+#### Query Parameters
+```
+origin=string (required - origin address)
+destination=string (required - destination address)
+```
+
+#### Example Request
+```
+GET /api/distance/calculate?origin=New York, NY&destination=Los Angeles, CA
+```
+
+#### Response (200 OK)
+```json
+{
+  "origin": "New York, NY",
+  "destination": "Los Angeles, CA",
+  "distanceKm": 3935.74,
+  "originCoordinates": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "destinationCoordinates": {
+    "latitude": 34.0522,
+    "longitude": -118.2437
+  },
+  "calculatedAt": "2024-01-01T12:00:00Z"
+}
+```
+
+#### Error Response (400 Bad Request)
+```json
+{
+  "message": "Both origin and destination addresses are required"
+}
+```
+
+### 2. Geocode Address
+**Endpoint:** `GET /api/distance/geocode`
+**Access:** Public (for testing purposes)
+**Description:** Get coordinates for an address
+
+#### Query Parameters
+```
+address=string (required - address to geocode)
+```
+
+#### Example Request
+```
+GET /api/distance/geocode?address=New York, NY
+```
+
+#### Response (200 OK)
+```json
+{
+  "address": "New York, NY",
+  "coordinates": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "geocodedAt": "2024-01-01T12:00:00Z"
+}
+```
+
+#### Error Response (400 Bad Request)
+```json
+{
+  "message": "Address parameter is required"
+}
+```
+
+### 3. Bulk Geocode
+**Endpoint:** `POST /api/distance/geocode/bulk`
+**Access:** Public (for testing purposes)
+**Description:** Geocode multiple addresses at once
+
+#### Request Body
+```json
+{
+  "addresses": [
+    "New York, NY",
+    "Los Angeles, CA",
+    "Chicago, IL"
+  ]
+}
+```
+
+#### Response (200 OK)
+```json
+{
+  "results": [
+    {
+      "address": "New York, NY",
+      "coordinates": {
+        "latitude": 40.7128,
+        "longitude": -74.0060
+      },
+      "geocodedAt": "2024-01-01T12:00:00Z"
+    },
+    {
+      "address": "Los Angeles, CA",
+      "coordinates": {
+        "latitude": 34.0522,
+        "longitude": -118.2437
+      },
+      "geocodedAt": "2024-01-01T12:00:00Z"
+    }
+  ],
+  "processedAt": "2024-01-01T12:00:00Z"
+}
+```
+
+### 4. Cache Statistics
+**Endpoint:** `GET /api/distance/cache-stats`
+**Access:** Public (for monitoring purposes)
+**Description:** Get geocoding cache statistics
+
+#### Response (200 OK)
+```json
+{
+  "totalCachedAddresses": 1250,
+  "expiredEntries": 15,
+  "activeEntries": 1235,
+  "checkedAt": "2024-01-01T12:00:00Z"
+}
+```
+
+### 5. Clear Cache
+**Endpoint:** `DELETE /api/distance/cache`
+**Access:** Admin only
+**Description:** Clear geocoding cache
+
+#### Response (200 OK)
+```json
+{
+  "message": "Cache cleared successfully",
+  "entriesRemoved": 1250,
+  "clearedAt": "2024-01-01T12:00:00Z"
+}
+```
+
+---
+
 ## Reports & Analytics APIs
 
 ### 1. Get Dashboard Analytics
 **Endpoint:** `GET /api/reports/analytics`
 **Access:** Admin only
-**Description:** Get dashboard statistics
+**Description:** Get comprehensive dashboard statistics and analytics
 
 #### Response (200 OK)
 ```json
@@ -981,7 +1255,7 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
       "count": 120
     },
     {
-      "status": "InTransit",
+      "status": "InTransit", 
       "count": 20
     },
     {
@@ -999,7 +1273,7 @@ If `useAutoAssignment` is false, returns array of recommendations (same as drive
       "count": 50
     },
     {
-      "month": "2024-02",
+      "month": "2024-02", 
       "count": 45
     },
     {

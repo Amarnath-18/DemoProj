@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using demoProject.Data;
@@ -36,6 +36,7 @@ namespace demoProject.Controllers
             {
                 return BadRequest("Invalid user ID");
             }
+
             var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
             IQueryable<Shipment> query = _context.Shipments
@@ -47,11 +48,14 @@ namespace demoProject.Controllers
             // Filter based on user role
             query = currentUserRole switch
             {
-                "Admin" => query, // Admin can see all shipments
+                "Admin" => query,
                 "Driver" => query.Where(s => s.AssignedDriverId == currentUserId),
                 "Customer" => query.Where(s => s.SenderId == currentUserId),
-                _ => query.Where(s => false) // No access
+                _ => query.Where(s => false)
             };
+
+            // ✅ Sort by CreatedAt (newest first)
+            query = query.OrderByDescending(s => s.CreatedAt);
 
             var shipments = await query.Select(s => new ShipmentResponse
             {
@@ -108,6 +112,7 @@ namespace demoProject.Controllers
 
             return Ok(shipments);
         }
+
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ShipmentResponse>> GetShipment(Guid id)
